@@ -1,0 +1,40 @@
+{
+  "group_by": "SERVICE",
+  "currency": "USD",
+  "yesterday": {
+    "start": "2026-08-02",
+    "end": "2026-08-03",
+    "by_group": {
+      "Amazon EC2": 120.42,
+      "Amazon RDS": 41.10,
+      "Amazon CloudWatch": 30.00,
+      "Amazon S3": 15.55,
+      "AWS Lambda": 2.01,
+      "Amazon Route 53": 0.50
+    }
+  },
+  "day_before": {
+    "start": "2026-08-01",
+    "end": "2026-08-02",
+    "by_group": {
+      "Amazon EC2": 118.20,
+      "Amazon RDS": 41.00,
+      "Amazon CloudWatch": 3.00,
+      "Amazon S3": 16.10,
+      "AWS Lambda": 2.00,
+      "AWS Glue": 9.00
+    }
+  },
+  "mtd": {
+    "start": "2026-08-01",
+    "end": "2026-08-03",
+    "by_group": {
+      "Amazon EC2": 238.62,
+      "Amazon RDS": 82.10,
+      "Amazon CloudWatch": 33.00,
+      "Amazon S3": 31.65,
+      "AWS Lambda": 4.01,
+      "AWS Glue": 9.00
+    }
+  }
+}

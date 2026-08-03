@@ -1,0 +1,17 @@
+# Compiled CLI binary at repo root (anchored so it never matches cmd/aws-cost-slack/).
+/aws-cost-slack
+/bootstrap
+
+# Lambda package
+/deploy/terraform/function.zip
+
+# Go build/test artifacts
+*.test
+*.out
+coverage.txt
+
+# Editor/OS noise
+.DS_Store
+
+# Always keep example fixtures tracked.
+!examples/**

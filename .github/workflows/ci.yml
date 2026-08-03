@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: aws-cost-slack
+    steps:
+      - uses: actions/checkout@v4
+
+      # The minimal self-hosted runner ships without a C toolchain, and the race
+      # detector needs cgo. Install gcc up front so `-race` can link.
+      - name: Install C toolchain (for -race)
+        run: |
+          set -eux
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends build-essential
+          fi
+          gcc --version
+
+      # setup-go pulls the official .tar.gz (not .tar.xz), so it works on the
+      # minimal self-hosted runner. Version comes straight from go.mod.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt (must be clean)
+        run: |
+          set -eux
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"; echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test (race + coverage)
+        env:
+          CGO_ENABLED: "1"
+        run: go test -race -covermode=atomic ./...
+
+      - name: Render example (smoke)
+        run: |
+          set -eux
+          go run ./cmd/aws-cost-slack --input examples/input.json --dry-run > /tmp/msg.json
+          test -s /tmp/msg.json
+          grep -q '"type": "header"' /tmp/msg.json
