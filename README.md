@@ -1,7 +1,7 @@
 # aws-cost-slack
 
 [![ci](https://github.com/moveeeax/aws-cost-slack/actions/workflows/ci.yml/badge.svg)](https://github.com/moveeeax/aws-cost-slack/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go&logoColor=white)](go.mod)
+[![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)](go.mod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A morning cost pulse for your team, straight into Slack. `aws-cost-slack` reads

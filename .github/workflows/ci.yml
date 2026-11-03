@@ -6,11 +6,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The race detector needs cgo; install gcc up front so `-race` can link.
       - name: Install C toolchain (for -race)
@@ -23,7 +26,7 @@ jobs:
           gcc --version
 
       # Go version comes straight from go.mod.
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
