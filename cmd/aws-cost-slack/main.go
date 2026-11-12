@@ -25,6 +25,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/budgets"
 	ce "github.com/aws/aws-sdk-go-v2/service/costexplorer"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"github.com/moveeeax/aws-cost-slack/internal/awsbudgets"
@@ -86,7 +87,7 @@ func run(args []string) error {
 	fs.IntVar(&cfg.BaselineDays, "baseline-days", 0, "score anomalies against a rolling baseline of this many days (0 = day-over-day)")
 	fs.Float64Var(&cfg.Sigma, "sigma", 2.5, "baseline mode: standard deviations above the baseline that flag an anomaly")
 	fs.Float64Var(&cfg.MinDelta, "min-delta", 1, "absolute increase (currency units) an anomaly must also clear")
-	fs.StringVar(&cfg.StateFile, "state", "", "alert state file; anomalies already alerted are marked ongoing and resolutions are reported")
+	fs.StringVar(&cfg.StateFile, "state", "", "alert state file or s3://bucket/key; anomalies already alerted are marked ongoing and resolutions are reported")
 	fs.BoolVar(&cfg.AlertsOnly, "alerts-only", false, "post only when there is a new or resolved anomaly")
 	fs.IntVar(&cfg.Backtest, "backtest", 0, "print the alerts that would have fired over this many past days, then exit")
 	fs.Usage = func() {
@@ -105,7 +106,7 @@ func run(args []string) error {
 		return backtest(ctx, cfg)
 	}
 
-	report, st, err := build(ctx, cfg)
+	report, st, store, err := build(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -121,14 +122,14 @@ func run(args []string) error {
 	}
 	if cfg.AlertsOnly && !report.HasAlerts() {
 		fmt.Printf("no new or resolved anomalies for %s; nothing posted\n", report.Date)
-		return saveState(cfg, st)
+		return saveState(ctx, store, st)
 	}
 	if err := slack.Post(ctx, nil, cfg.Webhook, msg); err != nil {
 		return err
 	}
 	fmt.Printf("posted %s report for %s: total %s (%s DoD)\n",
 		cfg.GroupBy, report.Date, costs.Money(report.Currency, report.Total), costs.SignedPct(report.TotalDoDPct))
-	return saveState(cfg, st)
+	return saveState(ctx, store, st)
 }
 
 func (c config) validate() error {
@@ -147,6 +148,11 @@ func (c config) validate() error {
 	if c.BaselineDays > 0 && c.Sigma <= 0 {
 		return fmt.Errorf("--sigma must be positive")
 	}
+	if state.IsS3(c.StateFile) {
+		if _, _, err := state.ParseS3URI(c.StateFile); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -162,12 +168,16 @@ func options(cfg config) costs.Options {
 	}
 }
 
-func saveState(cfg config, st costs.AlertState) error {
-	if cfg.StateFile == "" {
+func saveState(ctx context.Context, store state.Store, st costs.AlertState) error {
+	if store == nil {
 		return nil
 	}
-	return state.Save(cfg.StateFile, st)
+	return store.Save(ctx, st)
 }
+
+// newS3 builds the S3 client for an s3:// state location. Tests replace it
+// with a fake.
+var newS3 = func(awsCfg aws.Config) state.S3API { return s3.NewFromConfig(awsCfg) }
 
 // lambdaHandler configures the run from environment variables and posts to
 // Slack. Any EventBridge Scheduler payload is ignored — the schedule is the
@@ -186,34 +196,59 @@ func lambdaHandler(ctx context.Context, _ json.RawMessage) error {
 		BaselineDays: envInt("BASELINE_DAYS", 0),
 		Sigma:        envFloat("SIGMA", 2.5),
 		MinDelta:     envFloat("MIN_DELTA", 1),
+		StateFile:    os.Getenv("STATE"),
+		AlertsOnly:   envBool("ALERTS_ONLY", false),
 	}
 	if cfg.Webhook == "" {
 		return fmt.Errorf("SLACK_WEBHOOK_URL is required")
 	}
-	if err := cfg.validate(); err != nil {
+	if err := cfg.validateLambda(); err != nil {
 		return err
 	}
-	report, _, err := build(ctx, cfg)
+	report, st, store, err := build(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	return slack.Post(ctx, nil, cfg.Webhook, slack.Render(report))
+	if cfg.AlertsOnly && !report.HasAlerts() {
+		return saveState(ctx, store, st)
+	}
+	if err := slack.Post(ctx, nil, cfg.Webhook, slack.Render(report)); err != nil {
+		return err
+	}
+	return saveState(ctx, store, st)
+}
+
+// validateLambda adds the Lambda-only rules to validate: the function's disk
+// does not outlive an invocation, so the state must live in S3, and
+// ALERTS_ONLY without a state would post every anomaly on every run anyway.
+func (c config) validateLambda() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.StateFile != "" && !state.IsS3(c.StateFile) {
+		return fmt.Errorf("STATE must be an s3://bucket/key URI in Lambda, got %q", c.StateFile)
+	}
+	if c.AlertsOnly && c.StateFile == "" {
+		return fmt.Errorf("ALERTS_ONLY needs STATE")
+	}
+	return nil
 }
 
 // build resolves cost input (fixture or live AWS) and the budget, assembles
 // the report, and reconciles it with the alert state when one is configured.
-// It returns the state to save after a successful post.
-func build(ctx context.Context, cfg config) (costs.Report, costs.AlertState, error) {
+// It returns the state to save after a successful post and the store to save
+// it to (nil without --state).
+func build(ctx context.Context, cfg config) (costs.Report, costs.AlertState, state.Store, error) {
 	var awsCfg aws.Config
-	if cfg.InputFile == "" {
+	if cfg.InputFile == "" || state.IsS3(cfg.StateFile) {
 		var err error
 		if awsCfg, err = loadAWSConfig(ctx, cfg); err != nil {
-			return costs.Report{}, costs.AlertState{}, err
+			return costs.Report{}, costs.AlertState{}, nil, err
 		}
 	}
 	in, err := loadInput(ctx, cfg, awsCfg)
 	if err != nil {
-		return costs.Report{}, costs.AlertState{}, err
+		return costs.Report{}, costs.AlertState{}, nil, err
 	}
 	in.GroupBy = cfg.GroupBy
 
@@ -221,24 +256,31 @@ func build(ctx context.Context, cfg config) (costs.Report, costs.AlertState, err
 	if cfg.BudgetName != "" {
 		lim, err := budgetLimit(ctx, awsCfg, cfg.BudgetName)
 		if err != nil {
-			return costs.Report{}, costs.AlertState{}, err
+			return costs.Report{}, costs.AlertState{}, nil, err
 		}
 		if lim.Unit != "" && lim.Unit != in.Currency {
-			return costs.Report{}, costs.AlertState{}, fmt.Errorf("budget %q is in %s but costs are in %s", cfg.BudgetName, lim.Unit, in.Currency)
+			return costs.Report{}, costs.AlertState{}, nil, fmt.Errorf("budget %q is in %s but costs are in %s", cfg.BudgetName, lim.Unit, in.Currency)
 		}
 		opts.Budget = lim.Amount
 	}
 
 	report := costs.Build(in, opts)
-	var st costs.AlertState
-	if cfg.StateFile != "" {
-		prev, err := state.Load(cfg.StateFile)
-		if err != nil {
-			return costs.Report{}, costs.AlertState{}, err
-		}
-		st = report.Reconcile(prev)
+	if cfg.StateFile == "" {
+		return report, costs.AlertState{}, nil, nil
 	}
-	return report, st, nil
+	var api state.S3API
+	if state.IsS3(cfg.StateFile) {
+		api = newS3(awsCfg)
+	}
+	store, err := state.Open(cfg.StateFile, api)
+	if err != nil {
+		return costs.Report{}, costs.AlertState{}, nil, err
+	}
+	prev, err := store.Load(ctx)
+	if err != nil {
+		return costs.Report{}, costs.AlertState{}, nil, err
+	}
+	return report, report.Reconcile(prev), store, nil
 }
 
 func loadAWSConfig(ctx context.Context, cfg config) (aws.Config, error) {
