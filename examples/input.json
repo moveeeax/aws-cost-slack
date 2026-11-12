@@ -36,5 +36,22 @@
       "AWS Lambda": 4.01,
       "AWS Glue": 9.00
     }
+  },
+  "last_month": {
+    "start": "2026-07-01",
+    "end": "2026-08-01",
+    "by_group": {
+      "Amazon EC2": 3650.00,
+      "Amazon RDS": 1271.00,
+      "Amazon CloudWatch": 93.00,
+      "Amazon S3": 496.00,
+      "AWS Lambda": 62.00,
+      "AWS Glue": 28.00
+    }
+  },
+  "forecast": {
+    "start": "2026-08-03",
+    "end": "2026-09-01",
+    "amount": 5871.20
   }
 }
