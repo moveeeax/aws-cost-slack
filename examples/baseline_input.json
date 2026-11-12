@@ -1,0 +1,347 @@
+{
+  "group_by": "SERVICE",
+  "currency": "USD",
+  "yesterday": {
+    "start": "2026-08-02",
+    "end": "2026-08-03",
+    "by_group": {
+      "Amazon EC2": 120.42,
+      "Amazon RDS": 41.1,
+      "Amazon CloudWatch": 30.0,
+      "Amazon S3": 15.55,
+      "AWS Glue": 24.0
+    }
+  },
+  "day_before": {
+    "start": "2026-08-01",
+    "end": "2026-08-02",
+    "by_group": {
+      "Amazon EC2": 118.0,
+      "Amazon RDS": 41.0,
+      "Amazon CloudWatch": 3.6,
+      "Amazon S3": 15.5,
+      "AWS Glue": 24.0
+    }
+  },
+  "mtd": {
+    "start": "2026-08-01",
+    "end": "2026-08-03",
+    "by_group": {
+      "Amazon EC2": 238.42,
+      "Amazon RDS": 82.1,
+      "Amazon CloudWatch": 33.6,
+      "Amazon S3": 31.05,
+      "AWS Glue": 48.0
+    }
+  },
+  "history": [
+    {
+      "start": "2026-07-05",
+      "end": "2026-07-06",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.4,
+        "Amazon S3": 15.0,
+        "AWS Glue": 24.0
+      }
+    },
+    {
+      "start": "2026-07-06",
+      "end": "2026-07-07",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.0,
+        "Amazon S3": 16.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-07",
+      "end": "2026-07-08",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.6,
+        "Amazon S3": 16.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-08",
+      "end": "2026-07-09",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.7,
+        "Amazon S3": 15.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-09",
+      "end": "2026-07-10",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.3,
+        "Amazon S3": 15.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-10",
+      "end": "2026-07-11",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.4,
+        "Amazon S3": 16.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-11",
+      "end": "2026-07-12",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.0,
+        "Amazon S3": 16.0,
+        "AWS Glue": 24.0
+      }
+    },
+    {
+      "start": "2026-07-12",
+      "end": "2026-07-13",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.6,
+        "Amazon S3": 15.5,
+        "AWS Glue": 24.0
+      }
+    },
+    {
+      "start": "2026-07-13",
+      "end": "2026-07-14",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.7,
+        "Amazon S3": 15.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-14",
+      "end": "2026-07-15",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.3,
+        "Amazon S3": 16.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-15",
+      "end": "2026-07-16",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.4,
+        "Amazon S3": 16.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-16",
+      "end": "2026-07-17",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.0,
+        "Amazon S3": 15.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-17",
+      "end": "2026-07-18",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.6,
+        "Amazon S3": 15.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-18",
+      "end": "2026-07-19",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.7,
+        "Amazon S3": 16.5,
+        "AWS Glue": 24.0
+      }
+    },
+    {
+      "start": "2026-07-19",
+      "end": "2026-07-20",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.3,
+        "Amazon S3": 16.0,
+        "AWS Glue": 24.0
+      }
+    },
+    {
+      "start": "2026-07-20",
+      "end": "2026-07-21",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.4,
+        "Amazon S3": 15.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-21",
+      "end": "2026-07-22",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.0,
+        "Amazon S3": 48.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-22",
+      "end": "2026-07-23",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.6,
+        "Amazon S3": 48.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-23",
+      "end": "2026-07-24",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.7,
+        "Amazon S3": 16.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-24",
+      "end": "2026-07-25",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.3,
+        "Amazon S3": 15.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-25",
+      "end": "2026-07-26",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.4,
+        "Amazon S3": 15.0,
+        "AWS Glue": 24.0
+      }
+    },
+    {
+      "start": "2026-07-26",
+      "end": "2026-07-27",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.0,
+        "Amazon S3": 16.5,
+        "AWS Glue": 24.0
+      }
+    },
+    {
+      "start": "2026-07-27",
+      "end": "2026-07-28",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.6,
+        "Amazon S3": 16.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-28",
+      "end": "2026-07-29",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.7,
+        "Amazon S3": 15.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-29",
+      "end": "2026-07-30",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.3,
+        "Amazon S3": 15.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-30",
+      "end": "2026-07-31",
+      "by_group": {
+        "Amazon EC2": 119.1,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 2.4,
+        "Amazon S3": 16.5,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-07-31",
+      "end": "2026-08-01",
+      "by_group": {
+        "Amazon EC2": 120.2,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.0,
+        "Amazon S3": 16.0,
+        "AWS Glue": 3.0
+      }
+    },
+    {
+      "start": "2026-08-01",
+      "end": "2026-08-02",
+      "by_group": {
+        "Amazon EC2": 118.0,
+        "Amazon RDS": 41.0,
+        "Amazon CloudWatch": 3.6,
+        "Amazon S3": 15.5,
+        "AWS Glue": 24.0
+      }
+    }
+  ]
+}

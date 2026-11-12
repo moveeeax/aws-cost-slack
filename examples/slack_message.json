@@ -11,7 +11,14 @@
     },
     {
       "text": {
-        "text": "*Total yesterday:* $209.58  ▲ +10.7%\n*Month to date:* $398.38",
+        "text": "*Total yesterday:* $209.58  ▲ +10.7%\n*Month to date:* $398.38\n*Month-end forecast:* $6269.58  (+12.0% vs last month)",
+        "type": "mrkdwn"
+      },
+      "type": "section"
+    },
+    {
+      "text": {
+        "text": ":large_green_circle: *Budget:* $398.38 of $6000.00  `▓░░░░░░░░░` 7%\nForecast: 104% of budget :warning:",
         "type": "mrkdwn"
       },
       "type": "section"

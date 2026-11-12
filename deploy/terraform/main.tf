@@ -36,6 +36,24 @@ variable "group_by" {
   default = "SERVICE"
 }
 
+variable "budget" {
+  type        = number
+  default     = 0
+  description = "Monthly budget amount in the report currency (0 = no budget line)"
+}
+
+variable "budget_name" {
+  type        = string
+  default     = ""
+  description = "AWS Budgets budget to read the monthly limit from, instead of var.budget"
+}
+
+variable "baseline_days" {
+  type        = number
+  default     = 0
+  description = "Score anomalies against a rolling baseline of this many days (0 = day-over-day)"
+}
+
 variable "schedule" {
   type        = string
   default     = "cron(0 8 * * ? *)" # 08:00 UTC daily
@@ -57,11 +75,23 @@ resource "aws_iam_role" "fn" {
   assume_role_policy = data.aws_iam_policy_document.assume.json
 }
 
-# Cost Explorer is global; ce:GetCostAndUsage is all the function needs.
+data "aws_caller_identity" "current" {}
+
+# Cost Explorer is global and has no resource-level permissions. The forecast
+# call powers the month-end line; budgets:ViewBudget is only granted when a
+# named budget is configured.
 data "aws_iam_policy_document" "ce" {
   statement {
-    actions   = ["ce:GetCostAndUsage"]
+    actions   = ["ce:GetCostAndUsage", "ce:GetCostForecast"]
     resources = ["*"]
+  }
+
+  dynamic "statement" {
+    for_each = var.budget_name == "" ? [] : [var.budget_name]
+    content {
+      actions   = ["budgets:ViewBudget"]
+      resources = ["arn:aws:budgets::${data.aws_caller_identity.current.account_id}:budget/${statement.value}"]
+    }
   }
 }
 
@@ -90,6 +120,9 @@ resource "aws_lambda_function" "cost_slack" {
     variables = {
       SLACK_WEBHOOK_URL = var.slack_webhook_url
       GROUP_BY          = var.group_by
+      BUDGET            = tostring(var.budget)
+      BUDGET_NAME       = var.budget_name
+      BASELINE_DAYS     = tostring(var.baseline_days)
     }
   }
 }

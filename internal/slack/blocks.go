@@ -4,6 +4,7 @@ package slack
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/moveeeax/aws-cost-slack/internal/costs"
@@ -52,27 +53,77 @@ func Render(r costs.Report) Message {
 	fallback := fmt.Sprintf("AWS cost for %s: %s (%s DoD)",
 		r.Date, costs.Money(cur, r.Total), costs.SignedPct(r.TotalDoDPct))
 
+	summary := fmt.Sprintf(
+		"*Total yesterday:* %s  %s %s\n*Month to date:* %s",
+		costs.Money(cur, r.Total),
+		arrow(r.TotalDoDPct),
+		costs.SignedPct(r.TotalDoDPct),
+		costs.Money(cur, r.MTDTotal),
+	)
+	if me := r.MonthEnd; me != nil {
+		label := "Month-end forecast"
+		if me.Final {
+			label = "Month total"
+		}
+		summary += fmt.Sprintf("\n*%s:* %s", label, costs.Money(cur, me.Total))
+		if me.HasLastMonth {
+			summary += fmt.Sprintf("  (%s vs last month)", costs.SignedPct(me.VsLastMonthPct))
+		}
+	}
+
 	blocks := []map[string]any{
 		header(fmt.Sprintf("💸 AWS cost — %s", r.Date)),
-		section(fmt.Sprintf(
-			"*Total yesterday:* %s  %s %s\n*Month to date:* %s",
-			costs.Money(cur, r.Total),
-			arrow(r.TotalDoDPct),
-			costs.SignedPct(r.TotalDoDPct),
-			costs.Money(cur, r.MTDTotal),
-		)),
+		section(summary),
+	}
+
+	if r.Budget != nil {
+		blocks = append(blocks, section(budgetText(cur, *r.Budget)))
 	}
 
 	if len(r.Anomalies) > 0 {
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf(":rotating_light: *Anomaly (> %s DoD):*\n", costs.SignedPct(r.Threshold)))
+		if r.Baseline != nil {
+			b.WriteString(fmt.Sprintf(":rotating_light: *Anomaly (≥ %.1fσ over %d-day baseline):*\n", r.Baseline.Sigma, r.Baseline.Days))
+		} else {
+			b.WriteString(fmt.Sprintf(":rotating_light: *Anomaly (> %s DoD):*\n", costs.SignedPct(r.Threshold)))
+		}
 		for _, a := range r.Anomalies {
-			b.WriteString(fmt.Sprintf("• *%s* %s → %s  (%s)\n",
-				a.Name,
-				costs.Money(cur, a.PrevAmount),
-				costs.Money(cur, a.Amount),
-				costs.SignedPct(a.DoDPct),
-			))
+			if r.Baseline != nil {
+				b.WriteString(fmt.Sprintf("• *%s* %s vs baseline %s  (%s, %.1fσ)",
+					a.Name,
+					costs.Money(cur, a.Amount),
+					costs.Money(cur, a.Baseline),
+					signedMoney(cur, a.Amount-a.Baseline),
+					a.Score,
+				))
+			} else {
+				b.WriteString(fmt.Sprintf("• *%s* %s → %s  (%s)",
+					a.Name,
+					costs.Money(cur, a.PrevAmount),
+					costs.Money(cur, a.Amount),
+					costs.SignedPct(a.DoDPct),
+				))
+			}
+			if len(a.Recent) > 1 {
+				b.WriteString("  `" + Sparkline(a.Recent) + "`")
+			}
+			if a.Ongoing {
+				b.WriteString(fmt.Sprintf("  _ongoing since %s_", a.Since))
+			}
+			b.WriteString("\n")
+		}
+		blocks = append(blocks, section(strings.TrimRight(b.String(), "\n")))
+	}
+
+	if len(r.Resolved) > 0 {
+		var b strings.Builder
+		b.WriteString(":white_check_mark: *Resolved:*\n")
+		for _, res := range r.Resolved {
+			b.WriteString(fmt.Sprintf("• *%s* back to %s", res.Name, costs.Money(cur, res.Amount)))
+			if r.Baseline != nil {
+				b.WriteString(fmt.Sprintf(" (baseline %s)", costs.Money(cur, res.Baseline)))
+			}
+			b.WriteString(fmt.Sprintf(", alerted since %s\n", res.Since))
 		}
 		blocks = append(blocks, section(strings.TrimRight(b.String(), "\n")))
 	}
@@ -105,6 +156,64 @@ func arrow(pct float64) string {
 	default:
 		return "▬"
 	}
+}
+
+// budgetText renders spend against the budget with a ten-cell progress bar.
+func budgetText(cur string, b costs.BudgetStatus) string {
+	icon := ":large_green_circle:"
+	switch b.Level {
+	case costs.BudgetWarn:
+		icon = ":warning:"
+	case costs.BudgetOver:
+		icon = ":rotating_light:"
+	}
+	name := ""
+	if b.Name != "" {
+		name = " (" + b.Name + ")"
+	}
+	s := fmt.Sprintf("%s *Budget%s:* %s of %s  `%s` %.0f%%",
+		icon, name, costs.Money(cur, b.Spent), costs.Money(cur, b.Amount),
+		progressBar(b.UsedPct), b.UsedPct)
+	if b.Level == costs.BudgetOver {
+		s += " — over budget"
+	}
+	if b.HasForecast {
+		s += fmt.Sprintf("\nForecast: %.0f%% of budget", b.ForecastPct)
+		if b.ForecastPct >= 100 && b.Level != costs.BudgetOver {
+			s += " :warning:"
+		}
+	}
+	return s
+}
+
+// progressBar draws pct (clamped to 0..100) as ten cells.
+func progressBar(pct float64) string {
+	const cells = 10
+	filled := int(math.Round(math.Max(0, math.Min(pct, 100)) / 100 * cells))
+	return strings.Repeat("▓", filled) + strings.Repeat("░", cells-filled)
+}
+
+var sparkLevels = []rune("▁▂▃▄▅▆▇█")
+
+// Sparkline draws a series as block characters scaled between its min and
+// max. A flat series is drawn at mid height.
+func Sparkline(vals []float64) string {
+	if len(vals) == 0 {
+		return ""
+	}
+	lo, hi := vals[0], vals[0]
+	for _, v := range vals {
+		lo, hi = math.Min(lo, v), math.Max(hi, v)
+	}
+	var b strings.Builder
+	for _, v := range vals {
+		i := len(sparkLevels) / 2
+		if hi > lo {
+			i = int(math.Round((v - lo) / (hi - lo) * float64(len(sparkLevels)-1)))
+		}
+		b.WriteRune(sparkLevels[i])
+	}
+	return b.String()
 }
 
 func signedMoney(cur string, v float64) string {
