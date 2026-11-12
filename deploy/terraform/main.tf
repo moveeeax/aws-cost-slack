@@ -6,6 +6,9 @@
 #   zip -j deploy/terraform/function.zip bootstrap
 #
 # Then:  terraform init && terraform apply -var 'slack_webhook_url=https://hooks.slack.com/...'
+#
+# Add -var 'state_bucket=my-bucket' to keep the alert state in S3 (one object,
+# state_key), and -var 'alerts_only=true' to post only new or resolved anomalies.
 
 terraform {
   required_version = ">= 1.5"
@@ -54,6 +57,29 @@ variable "baseline_days" {
   description = "Score anomalies against a rolling baseline of this many days (0 = day-over-day)"
 }
 
+variable "state_bucket" {
+  type        = string
+  default     = ""
+  description = "Existing S3 bucket for the alert state object (empty = no state: every run posts the full report)"
+}
+
+variable "state_key" {
+  type        = string
+  default     = "aws-cost-slack/state.json"
+  description = "Object key of the alert state inside state_bucket"
+
+  validation {
+    condition     = var.state_key != "" && !endswith(var.state_key, "/") && !startswith(var.state_key, "/")
+    error_message = "state_key must name an object, e.g. aws-cost-slack/state.json."
+  }
+}
+
+variable "alerts_only" {
+  type        = bool
+  default     = false
+  description = "Post only when an anomaly is new or resolved (requires state_bucket)"
+}
+
 variable "schedule" {
   type        = string
   default     = "cron(0 8 * * ? *)" # 08:00 UTC daily
@@ -76,6 +102,11 @@ resource "aws_iam_role" "fn" {
 }
 
 data "aws_caller_identity" "current" {}
+
+locals {
+  state_enabled = var.state_bucket != ""
+  state_uri     = local.state_enabled ? "s3://${var.state_bucket}/${var.state_key}" : ""
+}
 
 # Cost Explorer is global and has no resource-level permissions. The forecast
 # call powers the month-end line; budgets:ViewBudget is only granted when a
@@ -101,6 +132,39 @@ resource "aws_iam_role_policy" "ce" {
   policy = data.aws_iam_policy_document.ce.json
 }
 
+# Read and write the one state object, nothing else in the bucket. Without
+# s3:ListBucket, S3 answers GetObject on a missing key with 403 instead of
+# 404, so the object is created below rather than on the first run.
+data "aws_iam_policy_document" "state" {
+  count = local.state_enabled ? 1 : 0
+
+  statement {
+    actions   = ["s3:GetObject", "s3:PutObject"]
+    resources = ["arn:aws:s3:::${var.state_bucket}/${var.state_key}"]
+  }
+}
+
+resource "aws_iam_role_policy" "state" {
+  count  = local.state_enabled ? 1 : 0
+  name   = "alert-state"
+  role   = aws_iam_role.fn.id
+  policy = data.aws_iam_policy_document.state[0].json
+}
+
+# Empty state. The function rewrites it on every run; Terraform only creates
+# it and then leaves the content alone.
+resource "aws_s3_object" "state" {
+  count        = local.state_enabled ? 1 : 0
+  bucket       = var.state_bucket
+  key          = var.state_key
+  content      = jsonencode({ open = {} })
+  content_type = "application/json"
+
+  lifecycle {
+    ignore_changes = [content, content_type, etag]
+  }
+}
+
 resource "aws_iam_role_policy_attachment" "logs" {
   role       = aws_iam_role.fn.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
@@ -123,6 +187,19 @@ resource "aws_lambda_function" "cost_slack" {
       BUDGET            = tostring(var.budget)
       BUDGET_NAME       = var.budget_name
       BASELINE_DAYS     = tostring(var.baseline_days)
+      STATE             = local.state_uri
+      ALERTS_ONLY       = tostring(var.alerts_only)
+    }
+  }
+
+  depends_on = [aws_iam_role_policy.state, aws_s3_object.state]
+
+  lifecycle {
+    # A precondition rather than a variable validation: validations that
+    # read another variable need Terraform 1.9.
+    precondition {
+      condition     = !var.alerts_only || local.state_enabled
+      error_message = "alerts_only needs state_bucket: without a state every anomaly is new on every run."
     }
   }
 }

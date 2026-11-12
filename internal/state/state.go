@@ -1,6 +1,6 @@
-// Package state keeps the alert state file between runs: which anomalies have
+// Package state keeps the alert state between runs: which anomalies have
 // already been posted, so an hourly cron does not page six times for one
-// spike.
+// spike. The state is a JSON file on local disk or an S3 object.
 package state
 
 import (

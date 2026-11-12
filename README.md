@@ -75,7 +75,7 @@ Flags:
 | `--baseline-days` | `0` | score anomalies against a rolling baseline of N days (0 = DoD) |
 | `--sigma` | `2.5` | baseline mode: standard deviations above the mean that flag an anomaly |
 | `--min-delta` | `1` | absolute increase an anomaly must also clear, in currency units |
-| `--state` | — | alert state file: alert once per anomaly, report resolutions |
+| `--state` | — | alert state file or `s3://bucket/key`: alert once per anomaly, report resolutions |
 | `--alerts-only` | `false` | post only when an anomaly is new or resolved |
 | `--backtest` | `0` | print what would have fired over the last N days, then exit |
 
@@ -137,6 +137,18 @@ aws-cost-slack --baseline-days 28 --sigma 2.5 --min-delta 50 \
 Without `--baseline-days`, the state works the same way with the DoD rule, and
 an alert resolves as soon as the group is no longer flagged.
 
+`--state` also takes an S3 URI, `--state s3://my-bucket/aws-cost-slack/state.json`,
+using the same AWS credentials as Cost Explorer. The caller needs
+`s3:GetObject` and `s3:PutObject` on that object (plus `kms:Decrypt` and
+`kms:GenerateDataKey` on the key if the bucket uses SSE-KMS with a
+customer-managed key). A missing object is an empty state, but S3 reports a
+missing key as 404 only to callers that also have `s3:ListBucket` on the
+bucket; with object-level permissions alone it is 403 and the run fails, so
+either grant `s3:ListBucket` or create the object first with `{"open":{}}`.
+Writes are conditional (`If-Match` on the ETag that was read, `If-None-Match: *`
+when there was no object), so when two runs overlap the second one fails to
+save instead of overwriting the first one's state.
+
 To tune thresholds before turning alerts on, replay a past window. Nothing is
 posted:
 
@@ -158,11 +170,13 @@ so `--group-by SERVICE` gives per-service baselines and
 The same binary is a Lambda handler when `AWS_LAMBDA_RUNTIME_API` is set —
 configure it with env vars (`SLACK_WEBHOOK_URL`, `GROUP_BY`, `METRIC`, `TOP`,
 `THRESHOLD`, `FORECAST`, `BUDGET`, `BUDGET_NAME`, `BASELINE_DAYS`, `SIGMA`,
-`MIN_DELTA`) and let EventBridge Scheduler trigger it daily. The alert state
-file is CLI-only: Lambda posts the full report every run. A ready Terraform
-example (IAM role scoped to `ce:GetCostAndUsage` and `ce:GetCostForecast`,
-plus `budgets:ViewBudget` on the named budget when `budget_name` is set,
-function, and daily schedule) lives in [`deploy/terraform/`](deploy/terraform):
+`MIN_DELTA`, `STATE`, `ALERTS_ONLY`) and let EventBridge Scheduler trigger it
+daily. In Lambda, `STATE` must be an `s3://bucket/key` URI (the function's disk
+does not survive between invocations), and `ALERTS_ONLY=true` requires `STATE`.
+A ready Terraform example (IAM role scoped to `ce:GetCostAndUsage` and
+`ce:GetCostForecast`, plus `budgets:ViewBudget` on the named budget when
+`budget_name` is set, function, and daily schedule) lives in
+[`deploy/terraform/`](deploy/terraform):
 
 ```sh
 GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap ./cmd/aws-cost-slack
@@ -170,6 +184,22 @@ zip -j deploy/terraform/function.zip bootstrap
 cd deploy/terraform
 terraform init && terraform apply -var "slack_webhook_url=$SLACK_URL"
 ```
+
+Without `state_bucket`, the function keeps no state and posts the full report
+every run. To alert once per anomaly, point it at an existing bucket:
+
+```sh
+terraform apply -var "slack_webhook_url=$SLACK_URL" \
+  -var state_bucket=my-bucket -var state_key=aws-cost-slack/state.json \
+  -var baseline_days=28 -var alerts_only=true
+```
+
+This grants the role `s3:GetObject` and `s3:PutObject` on that one object (no
+`s3:ListBucket`), creates the object with an empty state, and sets `STATE`.
+Terraform ignores later changes to the object's content, so the function owns
+it after the first apply. If an object already exists at that key, the first
+apply overwrites it with an empty state, which means open anomalies are
+announced once more.
 
 ## Development
 
